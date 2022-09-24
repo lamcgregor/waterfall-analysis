@@ -1,23 +1,28 @@
-import React from 'react';
-import logo from './logo.svg';
-import './App.css';
+import React, { useState } from "react";
+import "./App.css";
+import { ShareTable } from "./components/shareTable";
+import { calculateShareClass } from "./utils";
+
+type ExitAmounts = 60 | 25 | 35 | 45;
 
 function App() {
+  const [exitAmount, setExitAmount] = useState<ExitAmounts>(60);
+  const { shareClasses } = calculateShareClass(exitAmount * 1000000);
+  console.log(shareClasses);
   return (
     <div className="App">
       <header className="App-header">
-        <img src={logo} className="App-logo" alt="logo" />
-        <p>
-          Edit <code>src/App.tsx</code> and save to reload.
-        </p>
-        <a
-          className="App-link"
-          href="https://reactjs.org"
-          target="_blank"
-          rel="noopener noreferrer"
+        <select
+          onChange={({ currentTarget: { value } }) => {
+            setExitAmount(parseInt(value) as ExitAmounts);
+          }}
         >
-          Learn React
-        </a>
+          <option value={60}>€60m</option>
+          <option value={25}>€25m</option>
+          <option value={35}>€35m</option>
+          <option value={45}>€45m</option>
+        </select>
+        <ShareTable shareClasses={shareClasses} />
       </header>
     </div>
   );
