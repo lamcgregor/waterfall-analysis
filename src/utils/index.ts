@@ -10,10 +10,13 @@ type ShareClass = {
   cap: CapType;
   title: string;
   capped: boolean;
-  pos: number;
 };
 
-export interface CalculatedShareClass extends ShareClass {
+interface PositionedShareClass extends ShareClass {
+  pos: number;
+}
+
+export interface CalculatedShareClass extends PositionedShareClass {
   shareCount: number;
   purchasePrice: number;
   cap: CapType;
@@ -33,7 +36,6 @@ const shareStructure: ShareClass[] = [
     purchasePrice: 0,
     cap: "common",
     capped: false,
-    pos: 1,
   },
   {
     title: "Preferred A",
@@ -41,7 +43,6 @@ const shareStructure: ShareClass[] = [
     purchasePrice: 900000,
     cap: "1x participating, 2x cap",
     capped: false,
-    pos: 2,
   },
   {
     title: "Preferred B",
@@ -49,7 +50,6 @@ const shareStructure: ShareClass[] = [
     purchasePrice: 2100000,
     cap: "1x participating, 2x cap",
     capped: false,
-    pos: 3,
   },
   {
     title: "Preferred C",
@@ -57,20 +57,19 @@ const shareStructure: ShareClass[] = [
     purchasePrice: 15000000,
     cap: "1x participating, 2x cap",
     capped: false,
-    pos: 4,
   },
 ];
-
-// TO DO Convert to common calculation
-// Caps
 
 export const calculateShareClass = (
   exitAmount: number
 ): CalculatedShareStructure => {
   let storedCapital = exitAmount;
 
+  // TO DO: Check if the investor should convert to common shares
+  const positionedShareClasses = addPositions(shareStructure);
+
   // We remove the base liquidation preferences first (investors initial purchase price)
-  let calculatedShareClasses: CalculatedShareClass[] = shareStructure
+  let calculatedShareClasses: CalculatedShareClass[] = positionedShareClasses
     .slice(0)
     .reverse()
     .map((shareClass) => {
@@ -94,7 +93,16 @@ export const calculateShareClass = (
   };
 };
 
-const assignPreference = (investor: ShareClass, storedCapital: number) => {
+const addPositions = (x: ShareClass[]): PositionedShareClass[] =>
+  x.map((a, i) => ({
+    ...a,
+    pos: i + 1,
+  }));
+
+const assignPreference = (
+  investor: PositionedShareClass,
+  storedCapital: number
+) => {
   // If there is less capital left than the initial purchase price, this investor takes the last of it
   if (investor.purchasePrice > storedCapital) {
     return {
@@ -112,45 +120,37 @@ const assignPreference = (investor: ShareClass, storedCapital: number) => {
 
 const capInvestors = (
   investments: CalculatedShareClass[],
-  storedCapital: number,
-  checkCaps: boolean = true
+  storedCapital: number
 ): CalculatedShareClass[] => {
   // We calculate the total shares in the company
   const totalShares = investments.reduce(
     (total, x) => (total += x.shareCount),
     0
   );
-  let capReached = !checkCaps; // Check if an investor would be capped by a weighted split
+  let capReached = false; // Check if an investor would be capped by a weighted split
   let capitalToRemove = 0; // A store for the capped investors amounts to remove before recurring
   const uncappedInvestments = investments.map((investor) => {
     const returnPercentage =
       storedCapital * (investor.shareCount / totalShares); // Return amount based on share percentage
-    if (checkCaps) {
-      const isInvestorCapped = checkInvestorCap(
-        investor.cap,
-        returnPercentage,
-        investor.purchasePrice
-      );
-      if (isInvestorCapped) {
-        capReached = true;
-        capitalToRemove += investor.purchasePrice;
-      }
-      return {
-        ...investor,
-        capped: isInvestorCapped,
-        exitAmount: isInvestorCapped
-          ? investor.purchasePrice + investor.exitAmount
-          : investor.exitAmount, // Assign a percentage of the remaining capital to each investor according to their share ownership
-      };
+    const isInvestorCapped = checkInvestorCap(
+      investor.cap,
+      returnPercentage,
+      investor.purchasePrice
+    );
+    if (isInvestorCapped) {
+      capReached = true;
+      capitalToRemove += investor.purchasePrice;
     }
     return {
       ...investor,
-      exitAmount: Math.round(investor.exitAmount + returnPercentage),
+      capped: isInvestorCapped,
+      exitAmount: isInvestorCapped
+        ? investor.purchasePrice + investor.exitAmount
+        : investor.exitAmount, // Assign a percentage of the remaining capital to each investor according to their share ownership
     };
   });
-  if (!checkCaps) return uncappedInvestments; // If we're dividing up the remaining don't recurse
   if (!capReached) {
-    return [...capInvestors(uncappedInvestments, storedCapital, false)]; // If we didn't cap any investors, divide up the remaining
+    return [...splitRemaining(uncappedInvestments, storedCapital)]; // If we didn't cap any investors, divide up the remaining
   }
   const cappedInvestors = uncappedInvestments.filter((x) => x.capped); // Filter capped and uncapped investors
   const remainingInvestors = uncappedInvestments.filter((x) => !x.capped);
@@ -171,6 +171,25 @@ const checkInvestorCap = (
     default:
       return false;
   }
+};
+
+const splitRemaining = (
+  investments: CalculatedShareClass[],
+  storedCapital: number
+): CalculatedShareClass[] => {
+  // We calculate the total shares in the company
+  const totalShares = investments.reduce(
+    (total, x) => (total += x.shareCount),
+    0
+  );
+  return investments.map((investor) => {
+    const returnPercentage =
+      storedCapital * (investor.shareCount / totalShares); // Return amount based on share percentage
+    return {
+      ...investor,
+      exitAmount: Math.round(investor.exitAmount + returnPercentage),
+    };
+  });
 };
 
 export const formatCommaSeparated = (num: number) =>
