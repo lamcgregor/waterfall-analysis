@@ -10,6 +10,7 @@ type ShareClass = {
   cap: CapType;
   title: string;
   capped: boolean;
+  common: boolean;
 };
 
 interface PositionedShareClass extends ShareClass {
@@ -36,6 +37,7 @@ const shareStructure: ShareClass[] = [
     purchasePrice: 0,
     cap: "common",
     capped: false,
+    common: false,
   },
   {
     title: "Preferred A",
@@ -43,6 +45,7 @@ const shareStructure: ShareClass[] = [
     purchasePrice: 900000,
     cap: "1x participating, 2x cap",
     capped: false,
+    common: false,
   },
   {
     title: "Preferred B",
@@ -50,6 +53,7 @@ const shareStructure: ShareClass[] = [
     purchasePrice: 2100000,
     cap: "1x participating, 2x cap",
     capped: false,
+    common: false,
   },
   {
     title: "Preferred C",
@@ -57,6 +61,7 @@ const shareStructure: ShareClass[] = [
     purchasePrice: 15000000,
     cap: "1x participating, 2x cap",
     capped: false,
+    common: false,
   },
 ];
 
@@ -84,7 +89,8 @@ export const calculateShareClass = (
   if (storedCapital > 0) {
     calculatedShareClasses = capInvestors(
       calculatedShareClasses,
-      storedCapital
+      storedCapital,
+      exitAmount
     );
   }
   return {
@@ -120,7 +126,8 @@ const assignPreference = (
 
 const capInvestors = (
   investments: CalculatedShareClass[],
-  storedCapital: number
+  storedCapital: number,
+  totalCapital: number
 ): CalculatedShareClass[] => {
   // We calculate the total shares in the company
   const totalShares = investments.reduce(
@@ -132,19 +139,38 @@ const capInvestors = (
   const uncappedInvestments = investments.map((investor) => {
     const returnPercentage =
       storedCapital * (investor.shareCount / totalShares); // Return amount based on share percentage
-    const isInvestorCapped = checkInvestorCap(
+    const wouldInvestorBeCapped = checkInvestorCap(
       investor.cap,
       returnPercentage,
       investor.purchasePrice
     );
-    if (isInvestorCapped) {
+    if (wouldInvestorBeCapped) {
       capReached = true;
-      capitalToRemove += investor.purchasePrice;
+      const shouldInvestorConvertToCommon = isCommonReturnBetter(
+        investor,
+        totalCapital,
+        totalShares
+      );
+      console.log("capping investor!", investor);
+      console.log(shouldInvestorConvertToCommon);
+      if (!shouldInvestorConvertToCommon) {
+        capitalToRemove += investor.purchasePrice;
+      } else {
+        capitalToRemove +=
+          totalCapital * (investor.shareCount / totalShares) -
+          investor.exitAmount;
+        return {
+          ...investor,
+          capped: true,
+          exitAmount: totalCapital * (investor.shareCount / totalShares),
+          common: true,
+        };
+      }
     }
     return {
       ...investor,
-      capped: isInvestorCapped,
-      exitAmount: isInvestorCapped
+      capped: wouldInvestorBeCapped,
+      exitAmount: wouldInvestorBeCapped
         ? investor.purchasePrice + investor.exitAmount
         : investor.exitAmount, // Assign a percentage of the remaining capital to each investor according to their share ownership
     };
@@ -156,7 +182,11 @@ const capInvestors = (
   const remainingInvestors = uncappedInvestments.filter((x) => !x.capped);
   return [
     ...cappedInvestors,
-    ...capInvestors(remainingInvestors, storedCapital - capitalToRemove),
+    ...capInvestors(
+      remainingInvestors,
+      storedCapital - capitalToRemove,
+      totalCapital
+    ),
   ];
 };
 
@@ -171,6 +201,17 @@ const checkInvestorCap = (
     default:
       return false;
   }
+};
+
+const isCommonReturnBetter = (
+  { purchasePrice, shareCount }: CalculatedShareClass,
+  totalCapital: number,
+  totalShares: number
+) => {
+  console.log(totalCapital, totalShares);
+  console.log(purchasePrice * 2);
+  console.log(totalCapital * (shareCount / totalShares));
+  return purchasePrice * 2 < totalCapital * (shareCount / totalShares);
 };
 
 const splitRemaining = (

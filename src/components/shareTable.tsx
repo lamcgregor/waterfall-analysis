@@ -21,6 +21,7 @@ export const ShareTable = ({
       <Cell>Investment</Cell>
       <Cell>Return</Cell>
       <Cell>Capped?</Cell>
+      <Cell>Converted?</Cell>
     </Row>
     {shareClasses.map((shareClass, index) => (
       <ShareRow {...shareClass} key={`row-${index}`} />

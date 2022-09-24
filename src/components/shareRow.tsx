@@ -18,6 +18,7 @@ export const ShareRow = ({
   purchasePrice,
   exitAmount,
   capped,
+  common,
 }: CalculatedShareClass) => (
   <Row>
     <Cell>{title}</Cell>
@@ -25,5 +26,6 @@ export const ShareRow = ({
     <Cell>€{formatCommaSeparated(purchasePrice)}</Cell>
     <Cell>€{formatCommaSeparated(exitAmount)}</Cell>
     <Cell>{`${capped}`}</Cell>
+    <Cell>{`${common}`}</Cell>
   </Row>
 );
