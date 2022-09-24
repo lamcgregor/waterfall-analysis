@@ -112,37 +112,45 @@ const assignPreference = (investor: ShareClass, storedCapital: number) => {
 
 const capInvestors = (
   investments: CalculatedShareClass[],
-  storedCapital: number
+  storedCapital: number,
+  checkCaps: boolean = true
 ): CalculatedShareClass[] => {
   // We calculate the total shares in the company
   const totalShares = investments.reduce(
     (total, x) => (total += x.shareCount),
     0
   );
-  let capReached = false; // Check if an investor would be capped by a weighted split
+  let capReached = !checkCaps; // Check if an investor would be capped by a weighted split
   let capitalToRemove = 0; // A store for the capped investors amounts to remove before recurring
   const uncappedInvestments = investments.map((investor) => {
     const returnPercentage =
       storedCapital * (investor.shareCount / totalShares); // Return amount based on share percentage
-    const isInvestorCapped = checkInvestorCap(
-      investor.cap,
-      returnPercentage,
-      investor.purchasePrice
-    );
-    if (isInvestorCapped) {
-      capReached = true;
-      capitalToRemove += investor.purchasePrice;
+    if (checkCaps) {
+      const isInvestorCapped = checkInvestorCap(
+        investor.cap,
+        returnPercentage,
+        investor.purchasePrice
+      );
+      if (isInvestorCapped) {
+        capReached = true;
+        capitalToRemove += investor.purchasePrice;
+      }
+      return {
+        ...investor,
+        capped: isInvestorCapped,
+        exitAmount: isInvestorCapped
+          ? investor.purchasePrice + investor.exitAmount
+          : investor.exitAmount, // Assign a percentage of the remaining capital to each investor according to their share ownership
+      };
     }
     return {
       ...investor,
-      capped: isInvestorCapped,
-      exitAmount: isInvestorCapped
-        ? investor.purchasePrice + investor.exitAmount
-        : Math.round(investor.exitAmount + returnPercentage), // Assign a percentage of the remaining capital to each investor according to their share ownership
+      exitAmount: Math.round(investor.exitAmount + returnPercentage),
     };
   });
+  if (!checkCaps) return uncappedInvestments; // If we're dividing up the remaining don't recurse
   if (!capReached) {
-    return uncappedInvestments;
+    return [...capInvestors(uncappedInvestments, storedCapital, false)]; // If we didn't cap any investors, divide up the remaining
   }
   const cappedInvestors = uncappedInvestments.filter((x) => x.capped); // Filter capped and uncapped investors
   const remainingInvestors = uncappedInvestments.filter((x) => !x.capped);
