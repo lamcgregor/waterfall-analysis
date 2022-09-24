@@ -10,6 +10,7 @@ type ShareClass = {
   cap: CapType;
   title: string;
   capped: boolean;
+  pos: number;
 };
 
 export interface CalculatedShareClass extends ShareClass {
@@ -32,6 +33,7 @@ const shareStructure: ShareClass[] = [
     purchasePrice: 0,
     cap: "common",
     capped: false,
+    pos: 1,
   },
   {
     title: "Preferred A",
@@ -39,6 +41,7 @@ const shareStructure: ShareClass[] = [
     purchasePrice: 900000,
     cap: "1x participating, 2x cap",
     capped: false,
+    pos: 2,
   },
   {
     title: "Preferred B",
@@ -46,6 +49,7 @@ const shareStructure: ShareClass[] = [
     purchasePrice: 2100000,
     cap: "1x participating, 2x cap",
     capped: false,
+    pos: 3,
   },
   {
     title: "Preferred C",
@@ -53,6 +57,7 @@ const shareStructure: ShareClass[] = [
     purchasePrice: 15000000,
     cap: "1x participating, 2x cap",
     capped: false,
+    pos: 4,
   },
 ];
 
@@ -85,7 +90,7 @@ export const calculateShareClass = (
   }
   return {
     exitAmount: storedCapital,
-    shareClasses: calculatedShareClasses.reverse(),
+    shareClasses: calculatedShareClasses.sort((a, b) => a.pos - b.pos),
   };
 };
 
