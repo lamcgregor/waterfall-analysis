@@ -9,12 +9,12 @@ type ShareClass = {
   purchasePrice: number;
   cap: CapType;
   title: string;
-  capped: boolean;
-  common: boolean;
 };
 
 interface PositionedShareClass extends ShareClass {
   pos: number;
+  capped: boolean;
+  common: boolean;
 }
 
 export interface CalculatedShareClass extends PositionedShareClass {
@@ -36,32 +36,24 @@ const shareStructure: ShareClass[] = [
     shareCount: 1000000,
     purchasePrice: 0,
     cap: "common",
-    capped: false,
-    common: false,
   },
   {
     title: "Preferred A",
     shareCount: 200000,
     purchasePrice: 900000,
     cap: "1x participating, 2x cap",
-    capped: false,
-    common: false,
   },
   {
     title: "Preferred B",
     shareCount: 300000,
     purchasePrice: 2100000,
     cap: "1x participating, 2x cap",
-    capped: false,
-    common: false,
   },
   {
     title: "Preferred C",
     shareCount: 1500000,
     purchasePrice: 15000000,
     cap: "1x participating, 2x cap",
-    capped: false,
-    common: false,
   },
 ];
 
@@ -72,6 +64,17 @@ const shouldInvestorConvert = ({ shareCount, purchasePrice, cap }: PositionedSha
     default: return true
   }
 };
+
+const addPositions = (x: ShareClass[]): PositionedShareClass[] =>
+  x.map((a, i) => ({
+    ...a,
+    pos: i + 1,
+    capped: false,
+    common: false,
+  }));
+
+export const formatCommaSeparated = (num: number) =>
+  Number(num.toFixed(2)).toLocaleString("en");
 
 export const calculateShareClass = (
   exitAmount: number
@@ -121,7 +124,9 @@ export const calculateShareClass = (
     if (!shareClass.common) {
       // If the investor took their preference and would hit the cap
       if (shareClass.cap === "1x participating, 2x cap" && calculatedReturn > shareClass.purchasePrice) {
+        // When an investor exits we remove their totals from the capital left
         storedCapital -= shareClass.purchasePrice;
+        // And the share total
         sharesLeft -= shareClass.shareCount;
         return {
           ...shareClass,
@@ -134,25 +139,7 @@ export const calculateShareClass = (
   });
 
   // Now with the capped investors exited, split the remaining
-  const calculatedShareClasses = cappedShareClasses.map(shareClass => {
-    const returnPercentage = shareClass.shareCount / sharesLeft;
-    const calculatedReturn = Math.round(storedCapital * returnPercentage);
-    if(shareClass.capped) return shareClass;
-    // If the investor is not converting to common
-    if (!shareClass.common) {
-      // Give them their return percentage (their stored, assigned preference + percentage)
-      return {
-        ...shareClass,
-        exitAmount: shareClass.exitAmount + calculatedReturn
-      }
-    }
-
-    // Otherwise they get a simple percentage return
-    return {
-      ...shareClass,
-      exitAmount: calculatedReturn
-    }
-  });
+  const calculatedShareClasses = cappedShareClasses.map(shareClass => splitRemaining(shareClass, sharesLeft, storedCapital));
 
   // Return them to their original order
   calculatedShareClasses.sort((a, b) => a.pos - b.pos);
@@ -162,11 +149,24 @@ export const calculateShareClass = (
   };
 };
 
-const addPositions = (x: ShareClass[]): PositionedShareClass[] =>
-  x.map((a, i) => ({
-    ...a,
-    pos: i + 1,
-  }));
+const splitRemaining = (shareClass: CalculatedShareClass, sharesLeft: number, storedCapital: number) => {
+  const { shareCount, capped, exitAmount, common } = shareClass;
+  const returnPercentage = shareCount / sharesLeft;
+  const calculatedReturn = Math.round(storedCapital * returnPercentage);
+  if(capped) return shareClass;
+  // If the investor is not converting to common
+  if (!common) {
+    // Give them their return percentage (their stored, assigned preference + percentage)
+    return {
+      ...shareClass,
+      exitAmount: exitAmount + calculatedReturn
+    }
+  }
 
-export const formatCommaSeparated = (num: number) =>
-  Number(num.toFixed(2)).toLocaleString("en");
+  // Otherwise they get a simple percentage return
+  return {
+    ...shareClass,
+    exitAmount: calculatedReturn
+  }
+}
+
