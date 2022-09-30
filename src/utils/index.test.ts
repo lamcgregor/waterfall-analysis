@@ -46,10 +46,10 @@ describe("Utility tests", () => {
   describe("Calculate exit at 45m", () => {
     const calculated = calculateShareClass(45000000);
     it.each([
-      [0, 9560000],
-      [1, 1910000],
+      [0, 9555556],
+      [1, 1911111],
       [2, 4200000],
-      [3, 29300000],
+      [3, 29333333],
     ])(
       `Returns the correct exitAmount for index %i which is: %i`,
       (index, exitAmount) => {
@@ -58,12 +58,12 @@ describe("Utility tests", () => {
     );
   });
   describe("Calculate exit at 20m", () => {
-    const calculated = calculateShareClass(16000000);
+    const calculated = calculateShareClass(20000000);
     it.each([
-      [0, 0],
-      [1, 0],
-      [2, 1000000],
-      [3, 15000000],
+      [0, 666667],
+      [1, 1033333],
+      [2, 2300000],
+      [3, 16000000],
     ])(
       '"Returns the correct exitAmount for index %i which is: %i"',
       (index, exitAmount) => {
