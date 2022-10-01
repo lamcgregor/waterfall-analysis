@@ -94,11 +94,12 @@ export const calculateShareClass = (
     .map(shareClass => {
       const shouldConvert = shouldInvestorConvert(shareClass, storedCapital, totalShares);
       if (!shouldConvert) {
+        const assignedValue = Math.min(storedCapital, shareClass.purchasePrice);
         // Give them their assigned preference
-        storedCapital -= shareClass.purchasePrice;
+        storedCapital -= assignedValue
         return {
           ...shareClass,
-          exitAmount: shareClass.purchasePrice,
+          exitAmount: assignedValue,
         }
       }
       // Else note that this investor is converting to common
